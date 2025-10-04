@@ -1,4 +1,4 @@
-name: Build and publish to GitHub Container Registry
+name: Build, scan, and publish to GitHub Container Registry
 
 on:
   push:
@@ -6,14 +6,16 @@ on:
   pull_request:
     branches: [ main ]
 
-# Allow the job to write packages
 permissions:
   contents: read
   packages: write
 
 jobs:
-  build-and-push:
+  build-scan-publish:
     runs-on: ubuntu-latest
+    env:
+      IMAGE_NAME: ghcr.io/${{ github.repository_owner,, }}/build-push-app
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -31,14 +33,50 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push Docker image to GHCR
+      # ---------- build locally (for scanning) ----------
+      - name: Build image (local, not pushed yet)
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: false
+          load: true
+          tags: |
+            ${{ env.IMAGE_NAME }}:latest
+            ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          cache-from: type=registry,ref=${{ env.IMAGE_NAME }}:cache
+          cache-to: type=inline
+
+      # ---------- scan with Trivy ----------
+      - name: Scan image with Trivy (fail on HIGH/CRITICAL)
+        uses: aquasecurity/trivy-action@v0.24.0
+        with:
+          image-ref: ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          format: 'table'
+          severity: 'HIGH,CRITICAL'
+          output: trivy-results.txt
+          exit-code: '1'
+
+      - name: Show Trivy results (if present)
+        if: always()
+        run: |
+          if [ -f trivy-results.txt ]; then
+            echo "==== Trivy results ===="
+            cat trivy-results.txt
+            echo "======================="
+          else
+            echo "No Trivy results file found."
+          fi
+
+      # ---------- push to GHCR if scan passed ----------
+      - name: Push image to GHCR
+        if: ${{ success() }}
         uses: docker/build-push-action@v4
         with:
           context: .
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/build-push-app:latest
-            ghcr.io/${{ github.repository_owner }}/build-push-app:${{ github.sha }}
-          cache-from: type=registry,ref=ghcr.io/${{ github.repository_owner }}/build-push-app:cache
+            ${{ env.IMAGE_NAME }}:latest
+            ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          cache-from: type=registry,ref=${{ env.IMAGE_NAME }}:cache
           cache-to: type=inline
 
