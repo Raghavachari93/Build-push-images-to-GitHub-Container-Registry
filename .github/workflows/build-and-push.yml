@@ -14,7 +14,7 @@ jobs:
   build-scan-publish:
     runs-on: ubuntu-latest
     env:
-      IMAGE_NAME: ghcr.io/${{ github.repository_owner,, }}/build-push-app
+      IMAGE_NAME: ghcr.io/${{ toLower(github.repository_owner) }}/build-push-app
 
     steps:
       - name: Checkout code
