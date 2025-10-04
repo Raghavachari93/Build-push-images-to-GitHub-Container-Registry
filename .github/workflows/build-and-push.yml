@@ -13,8 +13,6 @@ permissions:
 jobs:
   build-scan-publish:
     runs-on: ubuntu-latest
-    env:
-      IMAGE_NAME: ghcr.io/${{ toLower(github.repository_owner) }}/build-push-app
 
     steps:
       - name: Checkout code
@@ -32,6 +30,10 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      # ---------- set lowercase image name ----------
+      - name: Set image name
+        run: echo "IMAGE_NAME=ghcr.io/$(echo ${{ github.repository_owner }} | tr '[:upper:]' '[:lower:]')/build-push-app" >> $GITHUB_ENV
 
       # ---------- build locally (for scanning) ----------
       - name: Build image (local, not pushed yet)
