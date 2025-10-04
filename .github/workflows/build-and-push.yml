@@ -50,7 +50,7 @@ jobs:
 
       # ---------- scan with Trivy ----------
       - name: Scan image with Trivy (fail on HIGH/CRITICAL)
-        uses: aquasecurity/trivy-action@v0.24.0
+        uses: aquasecurity/trivy-action@0.11.2
         with:
           image-ref: ${{ env.IMAGE_NAME }}:${{ github.sha }}
           format: 'table'
@@ -81,4 +81,11 @@ jobs:
             ${{ env.IMAGE_NAME }}:${{ github.sha }}
           cache-from: type=registry,ref=${{ env.IMAGE_NAME }}:cache
           cache-to: type=inline
+
+      # ---------- show final image name ----------
+      - name: Print image name
+        run: |
+          echo "Image pushed to:"
+          echo "${IMAGE_NAME}:latest"
+          echo "${IMAGE_NAME}:${GITHUB_SHA}"
 
